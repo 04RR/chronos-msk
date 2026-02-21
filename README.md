@@ -34,7 +34,7 @@ Evaluated on 1,425 held-out RSNA validation cases:
 
 ### Confidence Calibration
 
-The system provides calibrated confidence tiers validated with a positive monotonic correlation (r = +0.20):
+Validated with positive monotonic correlation (r = +0.20):
 
 | Tier | Cases | MAE | Within ±12m |
 |---|---|---|---|
@@ -42,14 +42,9 @@ The system provides calibrated confidence tiers validated with a positive monoto
 | MODERATE | 644 (45.2%) | 9.69m | 67.2% |
 | LOW | 245 (17.2%) | 10.71m | 64.5% |
 
-### Sex-Stratified Performance
+### Stratified Performance
 
-| Sex | Cases | MAE |
-|---|---|---|
-| Male | 773 | 8.26 months |
-| Female | 652 | 9.47 months |
-
-### Age-Stratified Performance
+**Sex**: Male MAE = 8.26m, Female MAE = 9.47m
 
 | Age Range | Cases | Regressor MAE | Atlas MAE |
 |---|---|---|---|
@@ -62,7 +57,7 @@ The system provides calibrated confidence tiers validated with a positive monoto
 
 ## Architecture
 
-The system orchestrates six specialized agents, each with a distinct validated role:
+The system orchestrates six specialized agents:
 
 ```
 X-Ray Image + Sex
@@ -124,85 +119,121 @@ X-Ray Image + Sex
 
 ### MedSigLIP-448 — Three Roles, One Backbone
 
-MedSigLIP-448 serves as the unified visual backbone across three distinct functions:
-
 1. **Feature extraction**: Frozen encoder produces 1152-D embeddings for classification and retrieval
-2. **Regression backbone**: LoRA-adapted with a 4-layer head incorporating sex conditioning for age estimation
-3. **Atlas embedding engine**: Full-image embeddings projected through a trained 256-D metric space for demographic-partitioned nearest-neighbor search
+2. **Regression backbone**: LoRA-adapted with a 4-layer head incorporating sex conditioning for DLDL age estimation
+3. **Atlas embedding engine**: Full-image embeddings projected through a trained 256-D metric space for demographic-partitioned FAISS retrieval
 
-This triple utilization means the 1.2 GB base model supports all three downstream tasks through lightweight adapters and heads totaling only 24 MB.
+The 1.2 GB base model supports all three downstream tasks through lightweight adapters and heads totaling only 24 MB.
 
 ### MedGemma 1.5 4B-IT — The Reasoning Layer
 
-MedGemma receives structured evidence (regressor estimate, atlas matches with distances, confidence tier) alongside the X-ray image and generates formal radiology reports with Findings, Impression, and Bone Age Assessment sections. It does not override the quantitative prediction — it explains it.
+Receives structured evidence (regressor estimate, atlas matches with distances, confidence tier) alongside the X-ray image. Generates formal radiology reports with Findings, Impression, and Bone Age Assessment sections. Does not override the quantitative prediction — it explains it.
 
-Key behavior (validated on 1,425 cases):
+Validated behavior (1,425 cases):
 - Agrees with regressor 76% of the time
 - Output clamped to ±12 months as safety bound
 - Only 3% of cases required clamping
-- Produces radiologist-quality explanations of ossification patterns
 
 ---
 
 ## Quick Start
 
-### Prerequisites
+### 1. Clone and Install
 
 ```bash
+git clone https://github.com/YOUR_USERNAME/chronos-msk.git
+cd chronos-msk
 pip install -r requirements.txt
 ```
 
-### Weights Setup
+### 2. Download Weights
 
-Download pretrained weights and place them in the `weights/` directory:
+Download pretrained model weights from Kaggle:
+
+**Model Checkpoints**: [kaggle.com/datasets/rohitrajesh/model-checkpoints](https://www.kaggle.com/datasets/rohitrajesh/model-checkpoints/)
+
+Download and extract into the `weights/` directory:
 
 ```
 weights/
-├── best_scout.pt              # YOLOv8 distal radius detector
-├── radiologist_head.pkl       # SVM classifier for TW3 staging
-├── projector_sota.pth         # SOTA demographic projector (1152->256D)
-└── medsiglip_sota/
-    ├── config.json            # Regressor configuration
-    ├── heads.pth              # Regression heads
-    └── adapter/               # LoRA adapter weights
+├── best_scout.pt              # YOLOv8 distal radius detector (~15 MB)
+├── radiologist_head.pkl       # SVM classifier for TW3 staging (~5 MB)
+├── projector_sota.pth         # SOTA demographic projector (~3 MB)
+└── medsiglip_sota/            # Unzip medsiglip_sota.zip
+    ├── config.json
+    ├── heads.pth
+    └── adapter/
         ├── adapter_config.json
-        ├── adapter_model.safetensors
-        └── ...
+        └── adapter_model.safetensors
 ```
 
-### Build Retrieval Index
+### 3. Download Retrieval Index
 
-Embed the Digital Hand Atlas images and build FAISS indices:
+**Pre-built FAISS Indices**: [kaggle.com/datasets/rohitrajesh/indices-projected-256d](https://www.kaggle.com/datasets/rohitrajesh/indices-projected-256d)
 
-```bash
-python train_retriever_sota.py
+Download and place in the project root:
+
+```
+indices_projected_256d/
+├── Male_Asian.index
+├── Male_Asian_meta.json
+├── Male_Caucasian.index
+├── Male_Caucasian_meta.json
+├── Male_Hispanic.index
+├── Male_Hispanic_meta.json
+├── Male_Black.index
+├── Male_Black_meta.json
+├── Female_Asian.index
+├── Female_Asian_meta.json
+├── Female_Caucasian.index
+├── Female_Caucasian_meta.json
+├── Female_Hispanic.index
+├── Female_Hispanic_meta.json
+├── Female_Black.index
+└── Female_Black_meta.json
 ```
 
-This will:
-1. Scan the atlas directory structure
-2. Embed all images with MedSigLIP (cached after first run)
-3. Train the demographic projector with SOTA multi-loss approach
-4. Rebuild FAISS indices automatically
+### 4. Download Datasets (for evaluation/retraining)
 
-### Run the Gradio Demo
+**RSNA Pediatric Bone Age**: Available on [Kaggle](https://www.kaggle.com/datasets/kmader/rsna-bone-age)
+
+**USC Digital Hand Atlas**: Available from the [DHA System](https://ipilab.usc.edu/research/baaweb/). See also [razorx89/digital-hand-atlas-downloader](https://github.com/razorx89/digital-hand-atlas-downloader) for automated download.
+
+Place validation data as:
+
+```
+data/
+├── boneage_val.csv               # Validation split (1,425 cases)
+└── RSNA_val/images/              # Corresponding PNG images
+    ├── 1234.png
+    ├── 5678.png
+    └── ...
+```
+
+### 5. Launch Demo
 
 ```bash
 python app.py
 ```
 
-Navigate to `http://localhost:7860` to access the web interface.
+Navigate to `http://localhost:7860` to access the Gradio interface.
 
-### Run Evaluation
+For MedGemma narrative reports, run [LM Studio](https://lmstudio.ai/) with the `medgemma-1.5-4b-it` model loaded.
+
+### 6. Run Evaluation
 
 ```bash
-# Fast evaluation — ensemble only, no VLM (takes ~30 minutes)
-python eval_embedding_fix.py
+# Fast evaluation — ensemble only, no VLM (~30 min, requires GPU)
+python evaluate.py --mode fast \
+    --val-csv data/boneage_val.csv \
+    --image-dir data/RSNA_val/images
 
-# Full evaluation with MedGemma narratives (requires LM Studio running)
-python vlm_eval.py
+# Full evaluation with MedGemma narratives (~2 hrs, requires LM Studio)
+python evaluate.py --mode full \
+    --vlm-url http://localhost:1234/v1/chat/completions
 
-# Compute competition metrics summary
-python compute_competition_metrics.py
+# Compute metrics from existing results
+python evaluate.py --mode metrics --results evaluation_results/results.csv
 ```
 
 ---
@@ -212,27 +243,91 @@ python compute_competition_metrics.py
 ```
 chronos-msk/
 │
-├── app.py                          # Gradio demo application
-├── main.py                         # CLI pipeline entry point
+├── app.py                              # Gradio demo interface
+├── evaluate.py                         # Consolidated evaluation script
+├── compute_competition_metrics.py      # Metrics summary generator
 │
 ├── agents/
 │   ├── __init__.py
-│   ├── agent1_scout.py             # YOLOv8 radius detection
-│   ├── agent2_radiologist.py       # MedSigLIP + SVM staging
-│   ├── agent3_archivist.py         # FAISS retrieval with SOTA projector
-│   ├── agent4_vlm_client.py        # MedGemma VLM client with clamping
-│   ├── agent5_regressor.py         # MedSigLIP + LoRA regression
-│   └── agent6_ensemble.py          # Confidence-calibrated ensemble
+│   ├── agent1_scout.py                 # YOLOv8 radius detection
+│   ├── agent2_radiologist.py           # MedSigLIP + SVM staging
+│   ├── agent3_archivist.py             # FAISS retrieval with SOTA projector
+│   ├── agent4_vlm_client.py            # MedGemma VLM client with output clamping
+│   ├── agent5_regressor.py             # MedSigLIP + LoRA regression
+│   └── agent6_ensemble.py              # Confidence-calibrated ensemble
 │
-├── train_retriever_sota.py         # SOTA retrieval training pipeline
-├── eval_embedding_fix.py           # Ensemble evaluation script
-├── eval_ensemble.py                # Quick ensemble evaluation
-├── vlm_eval.py                     # Full pipeline + VLM evaluation
-├── compute_competition_metrics.py  # Metrics summary for writeup
+├── training/
+│   ├── train_scout.py                  # YOLO detector training
+│   ├── train_radiologist.py            # SVM head training on MedSigLIP embeddings
+│   ├── train_regressor.py              # LoRA fine-tuning for DLDL age regression
+│   ├── train_retriever_sota.py         # SOTA projector (MS Loss + Proxy-NCA)
+│   └── build_full_index.py             # Full-image FAISS index construction
 │
-├── requirements.txt
-├── LICENSE
-└── README.md
+└── docs/
+    └── writeup.pdf                     # Competition writeup
+```
+
+---
+
+## Full Retraining Guide
+
+To reproduce the entire pipeline from scratch:
+
+### Step 1: Train Scout (Agent 1)
+
+Requires annotated bounding box data for distal radius detection.
+
+```bash
+python training/train_scout.py
+```
+
+### Step 2: Train Radiologist (Agent 2)
+
+Requires TW3 stage labels (we used Gemini 3 Pro as a synthetic annotator).
+
+```bash
+python training/train_radiologist.py
+```
+
+### Step 3: Train Regressor (Agent 5)
+
+Requires the full RSNA Bone Age dataset (12,611 training images). Optimized for RTX 4090.
+
+```bash
+python training/train_regressor.py
+```
+
+Key training details:
+- **Architecture**: MedSigLIP-448 with DoRA (Weight-Decomposed LoRA), r=16, alpha=32
+- **Loss**: KL divergence on Gaussian label distributions (DLDL, sigma=12 months)
+- **Optimizer**: AdamW fused, cosine LR schedule, bf16 mixed precision
+- **Augmentation**: Rotation (±20°), brightness/contrast jitter
+- **Training time**: ~2 hours on RTX 4090
+
+### Step 4: Train Retriever and Build Index (Agent 3)
+
+Requires the Digital Hand Atlas images.
+
+```bash
+# This script:
+# 1. Scans the atlas directory structure
+# 2. Embeds all 1,390 images with MedSigLIP (cached after first run)
+# 3. Trains the demographic projector with multi-loss approach
+# 4. Rebuilds FAISS indices automatically
+python training/train_retriever_sota.py
+```
+
+Training uses four loss components:
+- **Multi-Similarity Loss**: Mines all informative positive/negative pairs
+- **Proxy-NCA Loss**: Learns demographic class proxies
+- **Age-Continuous Soft Contrastive Loss**: Smooth age gradients via soft pair weights
+- **Auxiliary Age Regression**: Multi-task signal
+- **Curriculum Learning**: Age thresholds tighten from 36 to 6 months over 100 epochs
+
+### Step 5: Evaluate
+
+```bash
+python evaluate.py --mode fast
 ```
 
 ---
@@ -242,6 +337,8 @@ chronos-msk/
 ### RSNA Pediatric Bone Age (14,236 images)
 
 Primary training and validation source. We used a held-out 1,425-case validation set with strict no-leakage protocol. Labels are bone age in months with sex metadata.
+
+Source: [Kaggle](https://www.kaggle.com/datasets/kmader/rsna-bone-age)
 
 ### USC Digital Hand Atlas (1,390 images)
 
@@ -256,28 +353,7 @@ Explicitly designed for ethnic diversity with even distribution across four raci
 
 FAISS indices are partitioned by Sex and Race (8 partitions), ensuring Visual Twins come from biologically relevant populations.
 
----
-
-## Training Details
-
-### Regressor (Agent 5)
-
-- **Base**: MedSigLIP-448 vision encoder
-- **Adaptation**: LoRA (Low-Rank Adaptation)
-- **Head**: 4-layer MLP with sex conditioning via learned embedding
-- **Output**: Softmax over 228 bins, expected value gives age in months
-- **TTA**: Original + horizontal flip, averaged
-
-### Retrieval Projector (Agent 3)
-
-The SOTA demographic projector (1152-D to 256-D) is trained with four loss components:
-
-- **Multi-Similarity Loss**: Mines all informative positive/negative pairs per batch
-- **Proxy-NCA Loss**: Learns a proxy centroid for each of 8 demographic classes
-- **Age-Continuous Soft Contrastive Loss**: Pair weights decay with age distance
-- **Auxiliary Age Regression**: Multi-task signal using SmoothL1 loss
-
-Training uses curriculum learning (age thresholds tighten from 36 to 6 months over 100 epochs) and age-balanced sampling.
+Source: [USC DHA System](https://ipilab.usc.edu/research/baaweb/)
 
 ---
 
@@ -288,26 +364,27 @@ Training uses curriculum learning (age thresholds tighten from 36 to 6 months ov
 | MedSigLIP-448 (base model) | ~1.2 GB |
 | Custom weights (all agents) | ~24 MB |
 | MedGemma 4B (4-bit quantized) | ~3.5 GB |
-| **Total VRAM required** | **<6 GB** |
+| FAISS indices | ~3 MB |
+| **Total VRAM required** | **< 6 GB** |
 | Inference time per case | ~3 seconds |
 | Internet required | **No** |
 | Minimum hardware | Consumer GPU (GTX 1660 or equivalent) |
 
-The system is containerizable via Docker with zero external dependencies at inference time. Patient data never leaves the local machine, ensuring GDPR/HIPAA compliance by design.
+For training the regressor: RTX 4090 recommended (~2 hours). RTX 3080+ will also work with reduced batch size.
 
 ---
 
 ## Key Design Decisions
 
-| Decision | Rationale |
-|---|---|
-| Regressor as sole predictor | Empirically validated: no ensemble beat the regressor alone on overall MAE |
-| Retrieval for explainability only | Atlas MAE (19.13m) too noisy for numeric prediction, but distance correlates with error (r=+0.26) |
-| VLM as narrator, not arbiter | VLM deviation is uncorrelated with regressor error (r=-0.005); better used for explanation |
-| Demographic-partitioned indices | Skeletal maturation varies by sex and ethnicity; prevents Caucasian atlas bias |
-| Output clamping (±12 months) | Safety bound prevents VLM hallucination from corrupting predictions |
-| Full-image embeddings for retrieval | Fixed critical domain mismatch (crop queries vs full-image index) that caused 31.56m archivist MAE |
-| Age-range-based confidence | Retrieval-agreement confidence was inversely calibrated; age-range MAE is honest and monotonic |
+| Decision | Rationale | Evidence |
+|---|---|---|
+| Regressor as sole predictor | No ensemble beat the regressor alone on overall MAE | Grid search over all threshold/weight combinations |
+| Retrieval for explainability only | Atlas MAE (19.13m) too noisy for numeric prediction | Distance-error correlation r=+0.26 confirms meaningful space |
+| VLM as narrator, not arbiter | VLM deviation uncorrelated with regressor error (r=-0.005) | 1,425-case evaluation: VLM agrees 76% of the time |
+| Full-image embedding for retrieval | Fixed domain mismatch (crop query vs full-image index) | Archivist MAE improved from 31.56m to 19.13m |
+| Demographic-partitioned indices | Skeletal maturation varies by sex and ethnicity | DHA provides explicit race/sex metadata |
+| Output clamping (±12 months) | Safety bound prevents VLM hallucination | Pre-fix: VLM outputs ranged 0-1750 months |
+| DLDL instead of direct regression | Probability distribution captures uncertainty naturally | Expectation trick provides smooth, stable predictions |
 
 ---
 
@@ -322,16 +399,11 @@ This tool is for **research and demonstration purposes only**. It is not a medic
 ```bibtex
 @misc{chronosmsk2025,
     title={Chronos-MSK: Bias-Aware Skeletal Maturity Assessment at the Edge},
+    author={Rohit Rajesh},
     year={2025},
     note={Google HAI-DEF Competition Submission}
 }
 ```
-
----
-
-## License
-
-MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
@@ -340,3 +412,10 @@ MIT License. See [LICENSE](LICENSE) for details.
 - [Google Health AI Developer Foundations](https://developers.google.com/health-ai-developer-foundations) for MedSigLIP and MedGemma
 - [RSNA](https://www.rsna.org/) for the Pediatric Bone Age dataset
 - USC for the Digital Hand Atlas
+- [razorx89](https://github.com/razorx89/digital-hand-atlas-downloader) for the DHA downloader
+
+---
+
+## License
+
+MIT License. See [LICENSE](LICENSE) for details.
