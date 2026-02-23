@@ -138,28 +138,49 @@ Validated behavior (1,425 cases):
 
 ## Quick Start
 
+### Prerequisites
+
+- Python 3.9+
+- CUDA-capable GPU with ≥6 GB VRAM (or CPU — slower but functional)
+- ~3 GB disk space for model weights and indices
+- Internet connection for first run (downloads MedSigLIP-448 from HuggingFace, ~1.2 GB, cached after)
+
 ### 1. Clone and Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/chronos-msk.git
+git clone https://github.com/04RR/chronos-msk.git
 cd chronos-msk
 pip install -r requirements.txt
 ```
 
 ### 2. Download Weights
 
-Download pretrained model weights from Kaggle:
+Download from Kaggle and extract into the project:
 
-**Model Checkpoints**: [kaggle.com/datasets/rohitrajesh/model-checkpoints](https://www.kaggle.com/datasets/rohitrajesh/model-checkpoints/)
+```bash
+# Option A: Kaggle CLI
+pip install kaggle
+kaggle datasets download -d rohitrajesh/model-checkpoints -p weights/ --unzip
 
-Download and extract into the `weights/` directory:
+# Option B: Manual
+# Visit https://www.kaggle.com/datasets/rohitrajesh/model-checkpoints
+# Download, unzip, and place contents into weights/
+```
+
+If `medsiglip_sota` downloads as a zip, unzip it:
+
+```bash
+cd weights && unzip medsiglip_sota.zip && cd ..
+```
+
+Verify structure:
 
 ```
 weights/
-├── best_scout.pt              # YOLOv8 distal radius detector (~15 MB)
-├── radiologist_head.pkl       # SVM classifier for TW3 staging (~5 MB)
-├── projector_sota.pth         # SOTA demographic projector (~3 MB)
-└── medsiglip_sota/            # Unzip medsiglip_sota.zip
+├── best_scout.pt
+├── radiologist_head.pkl
+├── projector_sota.pth
+└── medsiglip_sota/
     ├── config.json
     ├── heads.pth
     └── adapter/
@@ -169,56 +190,60 @@ weights/
 
 ### 3. Download Retrieval Index
 
-**Pre-built FAISS Indices**: [kaggle.com/datasets/rohitrajesh/indices-projected-256d](https://www.kaggle.com/datasets/rohitrajesh/indices-projected-256d)
+```bash
+# Option A: Kaggle CLI
+kaggle datasets download -d rohitrajesh/indices-projected-256d -p . --unzip
 
-Download and place in the project root:
+# Option B: Manual
+# Visit https://www.kaggle.com/datasets/rohitrajesh/indices-projected-256d
+# Download, unzip into project root as indices_projected_256d/
+```
+
+Verify structure:
 
 ```
 indices_projected_256d/
 ├── Male_Asian.index
 ├── Male_Asian_meta.json
-├── Male_Caucasian.index
-├── Male_Caucasian_meta.json
-├── Male_Hispanic.index
-├── Male_Hispanic_meta.json
-├── Male_Black.index
-├── Male_Black_meta.json
-├── Female_Asian.index
-├── Female_Asian_meta.json
-├── Female_Caucasian.index
-├── Female_Caucasian_meta.json
-├── Female_Hispanic.index
-├── Female_Hispanic_meta.json
-├── Female_Black.index
+├── ...  (8 .index + 8 _meta.json files)
 └── Female_Black_meta.json
 ```
 
-### 4. Download Datasets (for evaluation/retraining)
+### 4. Add Sample Images
 
-**RSNA Pediatric Bone Age**: Available on [Kaggle](https://www.kaggle.com/datasets/kmader/rsna-bone-age)
+Place at least one hand/wrist X-ray PNG in a `samples/` directory for the built-in examples. The example filenames expected are `1561.png` and `1970.png` (from the RSNA Bone Age dataset).
 
-**USC Digital Hand Atlas**: Available from the [DHA System](https://ipilab.usc.edu/research/baaweb/). See also [razorx89/digital-hand-atlas-downloader](https://github.com/razorx89/digital-hand-atlas-downloader) for automated download.
-
-Place validation data as:
-
-```
-data/
-├── boneage_val.csv               # Validation split (1,425 cases)
-└── RSNA_val/images/              # Corresponding PNG images
-    ├── 1234.png
-    ├── 5678.png
-    └── ...
+```bash
+mkdir -p samples
+# Copy sample X-rays into samples/
 ```
 
-### 5. Launch Demo
+If you don't have RSNA images, the app still works — just upload your own image instead of using the examples.
+
+### 5. Launch
 
 ```bash
 python app.py
 ```
 
-Navigate to `http://localhost:7860` to access the Gradio interface.
+First launch downloads MedSigLIP-448 from HuggingFace (~1.2 GB). Subsequent launches use the cache.
 
-For MedGemma narrative reports, run [LM Studio](https://lmstudio.ai/) with the `medgemma-1.5-4b-it` model loaded.
+Navigate to **http://localhost:7860** once you see:
+
+```
+✅ All agents loaded. Ready to serve.
+```
+
+### 6. Optional: Enable MedGemma Narratives
+
+Clinical narrative generation requires [LM Studio](https://lmstudio.ai/) running locally with the `medgemma-1.5-4b-it` model. This is **entirely optional** — the core bone age pipeline works without it.
+
+1. Install LM Studio
+2. Search for and download `medgemma-1.5-4b-it`
+3. Start the local server (default: `http://localhost:1234`)
+4. Restart `app.py` — it will auto-detect the VLM
+
+If LM Studio is not running, the app disables narrative generation automatically with no errors.
 
 ### 6. Run Evaluation
 
