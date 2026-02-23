@@ -10,7 +10,7 @@ from transformers import SiglipVisionModel, AutoProcessor
 
 # --- CONFIGURATION ---
 CSV_PATH = "data/hand_atlas_dataset.csv"
-OUTPUT_DIR = "indices_full" # New directory for full-image vectors
+OUTPUT_DIR = "../indices_full" # New directory for full-image vectors
 MODEL_ID = "google/medsiglip-448"
 BATCH_SIZE = 32
 device = "cuda" if torch.cuda.is_available() else "cpu"
