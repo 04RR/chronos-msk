@@ -1045,7 +1045,7 @@ X-Ray Image + Sex + Race (optional)
 
 ⚠️ Research & Demonstration Only — Not a medical device
 
-Chronos-MSK © 2025 ·
+Chronos-MSK © 2026 ·
 [GitHub](https://github.com/04RR/chronos-msk) ·
 [Google HAI-DEF](https://developers.google.com/health-ai-developer-foundations)
 
