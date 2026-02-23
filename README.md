@@ -1,4 +1,4 @@
-# 🦴 Chronos-MSK: Explainable Bone Age Assessment at the Edge
+# Chronos-MSK: Demographically Fair Bone Age Assessment via Multi-Agent Retrieval
 
 **Bias-aware skeletal maturity assessment with calibrated confidence using MedSigLIP and MedGemma — running entirely offline on consumer hardware.**
 
