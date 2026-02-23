@@ -80,9 +80,9 @@ def compute_metrics(results_csv):
 
 if __name__ == "__main__":
     candidates = [
-        "evaluation_results_embedding_fix/embedding_fix_metrics.csv",
-        "evaluation_results_vlm_final/final_metrics.csv",
-        "evaluation_results_ensemble/ensemble_metrics.csv",
+        "evaluation_results/embedding_fix_metrics.csv",
+        "evaluation_results/final_metrics.csv",
+        "evaluation_results/ensemble_metrics.csv",
     ]
     for path in candidates:
         if os.path.exists(path):
@@ -91,3 +91,4 @@ if __name__ == "__main__":
             break
     else:
         print("No results file found. Run evaluation first.")
+
