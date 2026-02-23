@@ -381,7 +381,7 @@ def main():
         "--mode", choices=["fast", "full", "metrics"], default="fast",
         help="fast=ensemble only, full=ensemble+VLM, metrics=from existing CSV"
     )
-    parser.add_argument("--vlm-url", default="http://10.5.0.2:1234/v1/chat/completions")
+    parser.add_argument("--vlm-url", default="http://localhost:1234/v1/chat/completions")
     parser.add_argument("--vlm-model", default="medgemma-1.5-4b-it")
     parser.add_argument("--results", default=None, help="Path to existing results CSV")
     parser.add_argument("--val-csv", default=VAL_CSV)
