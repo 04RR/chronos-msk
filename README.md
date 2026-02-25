@@ -1,6 +1,7 @@
 # Chronos-MSK: Demographically Fair Bone Age Assessment via Multi-Agent Retrieval
 
-## Write up present in ChronosMSK_Writeup.pdf
+## **Writeup here**: [Download PDF](https://github.com/04RR/chronos-msk/blob/master/ChronosMSK_Writeup.pdf)
+## **Techinal paper here**: [Download PDF](https://github.com/04RR/chronos-msk/blob/master/ChronosMSK_technical_paper.pdf)
 
 **Bias-aware skeletal maturity assessment with calibrated confidence using MedSigLIP and MedGemma — running entirely offline on consumer hardware.**
 
